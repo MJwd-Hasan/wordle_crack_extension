@@ -2,9 +2,11 @@ from collections import Counter
 import nltk
 nltk.download('words', quiet=True)
 from nltk.corpus import words
+from collections import Counter
+from wordfreq import top_n_list
 
 candidates = sorted(set(
-    w.lower() for w in words.words() if len(w) == 5 and w.isalpha()
+    w.lower() for w in top_n_list('en', 50000) if len(w) == 5 and w.isalpha()
 ))
 
 def get_feedback(guess: str, candidate: str) -> str:
