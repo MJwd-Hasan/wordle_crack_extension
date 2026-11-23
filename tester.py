@@ -10,8 +10,8 @@ import torch
 import torch.nn.functional as F
 from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
 
-MODEL_DIR = '../wordle_flan_t5'
-CSV_PATH = '../wordle_8000_simulations.csv'
+MODEL_DIR = './wordle_flan_t5'
+CSV_PATH = 'wordle_8000_simulations.csv'
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
