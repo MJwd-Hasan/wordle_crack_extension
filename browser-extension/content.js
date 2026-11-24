@@ -145,7 +145,7 @@
     // Generic archive / clone fallback: group recognized tiles by their row
     // container. This also covers variants that do not use custom elements.
     const genericTiles = elements.filter(el => el.matches?.(
-      '[data-testid="tile"], [data-state], [data-status], [data-letter], [evaluation], .tile, [role="gridcell"]'
+      '[data-testid="tile"], [data-state], [data-status], [data-letter], [evaluation], .tile, [class*="tile" i], [role="gridcell"]'
     ));
     const groups = new Map();
     for (const tile of genericTiles) {
@@ -164,12 +164,50 @@
       add(validRow(parsed));
     }
 
+    // CSS-module fallback: some NYT builds expose Tile-module_tile classes
+    // without data-testid/data-state attributes. Cluster five tile-like
+    // descendants under their nearest shared row container.
+    const tileLike = elements.filter(el =>
+      /tile/i.test(typeof el.className === "string" ? el.className : "") &&
+      !el.closest?.("#wordle-guesser-overlay")
+    );
+    const tileSet = new Set(tileLike);
+    const candidateRows = new Set();
+    for (const tile of tileLike) {
+      let ancestor = tile.parentElement;
+      for (let depth = 0; ancestor && depth < 5; depth++, ancestor = ancestor.parentElement) {
+        const descendants = Array.from(ancestor.querySelectorAll?.("*") || [])
+          .filter(el => tileSet.has(el));
+        if (descendants.length === 5) {
+          candidateRows.add(ancestor);
+          break;
+        }
+        if (descendants.length > 5) break;
+      }
+    }
+    for (const row of candidateRows) {
+      rowCount++;
+      const tiles = Array.from(row.querySelectorAll("*")).filter(el => tileSet.has(el));
+      tileCount += tiles.length;
+      const parsed = tiles.map(readTile);
+      evaluatedTileCount += parsed.filter(t => t.feedback).length;
+      add(validRow(parsed));
+    }
+
+    const boardLike = elements.filter(el => {
+      const cls = typeof el.className === "string" ? el.className : "";
+      return /board|grid|row|tile/i.test(cls);
+    });
     lastDiagnostics = {
       host: location.hostname,
       rows: rowCount,
       tiles: tileCount,
       evaluated: evaluatedTileCount,
-      guesses: history.length
+      guesses: history.length,
+      boardLike: boardLike.length,
+      sampleClasses: boardLike.slice(0, 8).map(el =>
+        String(el.className || el.tagName).slice(0, 65)
+      )
     };
     return history;
   }
@@ -199,7 +237,9 @@
     const d = lastDiagnostics || { host: location.hostname, rows: 0, tiles: 0, evaluated: 0 };
     return '<div class="diag">Site: ' + d.host + '<br>Board rows: ' + d.rows +
       ' · tiles: ' + d.tiles + ' · colored: ' + d.evaluated +
-      '<br>If a submitted row is colored but guesses remain 0, this site uses an unsupported board layout.</div>';
+      '<br>Board-like elements: ' + (d.boardLike || 0) +
+      '<br>Class samples: ' + (d.sampleClasses || []).join(' | ') +
+      '<br>If rows and tiles remain 0, the game board may be in another frame or use a different rendering structure.</div>';
   }
 
   function render(history, data) {
