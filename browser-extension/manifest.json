@@ -1,0 +1,29 @@
+{
+  "manifest_version": 3,
+  "name": "Wordle Guesser — Manual Player",
+  "version": "1.0.0",
+  "description": "Live Wordle suggestions powered by the manual_player algorithm.",
+  "permissions": [],
+  "host_permissions": [
+    "https://wordlearchive.org/*",
+    "https://www.nytimes.com/games/wordle/*"
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Wordle Guesser"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://wordlearchive.org/*",
+        "https://www.nytimes.com/games/wordle/*"
+      ],
+      "js": [
+        "words.js",
+        "engine.js",
+        "content.js"
+      ],
+      "run_at": "document_idle"
+    }
+  ]
+}
