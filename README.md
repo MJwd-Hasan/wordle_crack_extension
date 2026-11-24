@@ -6,47 +6,62 @@ The repository explores how feedback constraints, letter statistics, information
 
 ## Features
 
-- **Browser extension (recommended for playing):** analyzes the live Wordle board locally, filters possible answers, and ranks strategic guesses using feedback-pattern entropy.
+- **Browser extension (recommended):** analyzes the live Wordle board locally, filters possible answers, and ranks strategic guesses using feedback-pattern entropy.
 - **Manual assistant:** enter each guess and its green/yellow/gray feedback to receive a filtered candidate list, letter frequencies, and weighted suggestions.
 - **Algorithm experiments:** basic candidate filtering and a comparison of fixed opening-guess combinations.
 - **Simulation dataset:** generate and store up to 8,000 simulated games.
 - **FLAN-T5 experiment:** train a `google/flan-t5-small` model on simulated game histories and combine its candidate scores with entropy-based ranking.
 
-## Repository structure
-
-| File / directory | Purpose |
-| --- | --- |
-| `browser-extension/` | Manifest V3 extension for Chrome and Microsoft Edge. See its [README](browser-extension/README.md) for extension-specific details. |
-| `algorithm.py` | Basic Wordle feedback, candidate filtering, and a six-guess random-candidate experiment with two fixed opening guesses. |
-| `manual_player.py` | Interactive terminal assistant using a frequency-based vocabulary and weighted candidate ranking. |
-| `best_suited_guesser.py` | Compares two three-word opening combinations across the same random target sample. |
-| `data_generator.py` | Simulates games and writes the results to `wordle_8000_simulations.csv`. |
-| `wordle_8000_simulations.csv` | Simulation data used by the language-model pipeline. |
-| `llm.py` | Fine-tunes FLAN-T5-small on generated game histories and saves the model to `wordle_flan_t5/`. |
-| `tester.py` | Loads the saved FLAN-T5 model and lets you test it against manually supplied target words. |
-| `wordle_flan_t5/` | Tokenizer and model configuration assets; run `llm.py` to train/save the model weights required by `tester.py`. |
-
 ## How to use
 
-Choose the workflow that matches what you want to do. For normal Wordle play, the browser extension is the easiest option and does not require Python or a model download.
+**Start with the browser extension** if your goal is to get suggestions while playing Wordle. The remaining sections document the optional Python-based experiments and tools.
 
-### 1. Use the browser extension (Chrome / Edge)
+## 1. Browser extension quick start (Chrome / Microsoft Edge)
 
-1. Clone or download this repository.
-2. Open the browser's extension management page:
-   - Chrome: `chrome://extensions`
+The browser extension is the recommended way to use this project during an actual Wordle game. It does not require Python, a terminal, or a model download.
+
+### Install the extension
+
+1. **Download the repository:** clone it with Git or download the ZIP and extract it.
+2. **Open your browser's extensions page:**
+   - Google Chrome: `chrome://extensions`
    - Microsoft Edge: `edge://extensions`
 3. Turn on **Developer mode**.
-4. Select **Load unpacked**.
-5. Choose the repository's `browser-extension` folder (not the repository root).
-6. Open or refresh a Wordle game. The extension adds its analysis interface to the game page.
-7. Play normally and enter your feedback on the board; the extension analyzes the board and updates its candidate and guess rankings.
+4. Click **Load unpacked**.
+5. In the folder picker, select the repository's **`browser-extension` folder**. Do not select the repository root.
+6. Once the extension appears in the extensions list, open or refresh your Wordle game page.
 
-The extension performs its analysis locally in the browser. It does not submit guesses or send board data to a server. See [browser-extension/README.md](browser-extension/README.md) for ranking details, vocabulary notes, and troubleshooting.
+### Use it while playing
 
-### 2. Run the manual terminal assistant
+1. Start a Wordle game and enter your first five-letter guess as usual.
+2. Submit the guess in Wordle so the board reveals its green, yellow, and gray tiles.
+3. The extension reads the board feedback and updates its analysis panel.
+4. Review the remaining possible answers and the ranked strategic guesses. The panel distinguishes possible answers from probe guesses that may be useful for gathering information.
+5. Choose a suggested word, enter it in Wordle, and submit it.
+6. Repeat the process after each row is evaluated. The candidate list and rankings update as more feedback becomes available.
 
-This is the interactive helper for entering your own guesses and feedback.
+### What the extension shows
+
+- Remaining answer candidates after applying all visible feedback.
+- Strategic guesses ranked using the information (Shannon entropy) their possible feedback patterns provide.
+- Expected number of candidates remaining and the largest possible remaining group.
+- Letter frequencies and eliminated-letter information.
+- A candidate-list percentage based on the simplifying assumption that all remaining dictionary entries are equally likely. This is **not** a calibrated probability of the official daily answer.
+
+### Privacy and troubleshooting
+
+- All board analysis runs locally in your browser. The extension does not submit guesses or send board data to a server.
+- If the panel does not appear after installation, confirm that you selected the `browser-extension` directory, ensure the extension is enabled, and refresh the Wordle tab.
+- If you update the extension's files, return to the extensions page and click the extension's **Reload** control, then refresh the Wordle tab.
+- For implementation details, vocabulary sources, and ranking methodology, see the [browser extension guide](browser-extension/README.md).
+
+## 2. Other user manuals: Python tools
+
+The following tools are optional. They are independent of the browser extension and are intended for terminal-based experiments, simulations, and model training.
+
+### 2.1 Run the manual terminal assistant
+
+This is an interactive helper for entering your own guesses and feedback.
 
 Create and activate a virtual environment (optional, but recommended):
 
@@ -57,7 +72,7 @@ python -m venv .venv
 Windows PowerShell:
 
 ```powershell
-.venv\Scripts\Activate.ps1
+.venv\\Scripts\\Activate.ps1
 ```
 
 macOS / Linux:
@@ -91,7 +106,7 @@ For each turn:
 
 Enter `GGGGG` when the guess solves the puzzle.
 
-### 3. Run the basic algorithm
+### 2.2 Run the basic algorithm
 
 Install the required packages:
 
@@ -107,7 +122,7 @@ python algorithm.py
 
 The script downloads the NLTK English words corpus if needed, selects a random five-letter target, and demonstrates candidate filtering. Its opening guesses are configured in `GUESS1` and `GUESS2`.
 
-### 4. Compare opening-guess combinations
+### 2.3 Compare opening-guess combinations
 
 Install dependencies:
 
@@ -123,7 +138,7 @@ python best_suited_guesser.py
 
 This compares the configured `combo_a` and `combo_b` over the same 1,000 randomly sampled targets (with a fixed random seed). It reports remaining-candidate summaries after each opening guess and a head-to-head comparison after guess three.
 
-### 5. Generate the simulation dataset
+### 2.4 Generate the simulation dataset
 
 Install dependencies:
 
@@ -139,7 +154,7 @@ python data_generator.py
 
 The script writes `wordle_8000_simulations.csv` in the current working directory and prints the observed win rate. The number of simulations and opening guesses can be changed near the top of the script.
 
-### 6. Train and test the FLAN-T5 model (advanced)
+### 2.5 Train and test the FLAN-T5 model (advanced)
 
 This workflow requires PyTorch and Hugging Face Transformers. Install the packages:
 
@@ -162,6 +177,20 @@ python tester.py
 ```
 
 Enter a five-letter target word to simulate a game, or enter `quit` to exit. The tester expects the model weights produced by `llm.py`; the configuration and tokenizer files in the repository alone are not a substitute for those trained weights.
+
+## Repository structure
+
+| File / directory | Purpose |
+| --- | --- |
+| `browser-extension/` | Manifest V3 extension for Chrome and Microsoft Edge. See its [README](browser-extension/README.md) for extension-specific details. |
+| `algorithm.py` | Basic Wordle feedback, candidate filtering, and a six-guess random-candidate experiment with two fixed opening guesses. |
+| `manual_player.py` | Interactive terminal assistant using a frequency-based vocabulary and weighted candidate ranking. |
+| `best_suited_guesser.py` | Compares two three-word opening combinations across the same random target sample. |
+| `data_generator.py` | Simulates games and writes the results to `wordle_8000_simulations.csv`. |
+| `wordle_8000_simulations.csv` | Simulation data used by the language-model pipeline. |
+| `llm.py` | Fine-tunes FLAN-T5-small on generated game histories and saves the model to `wordle_flan_t5/`. |
+| `tester.py` | Loads the saved FLAN-T5 model and lets you test it against manually supplied target words. |
+| `wordle_flan_t5/` | Tokenizer and model configuration assets; run `llm.py` to train/save the model weights required by `tester.py`. |
 
 ## Feedback notation
 
