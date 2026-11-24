@@ -4,6 +4,28 @@ A collection of Wordle-solving experiments, from a simple candidate-elimination 
 
 The repository explores how feedback constraints, letter statistics, information theory, simulation, and a small language model can be combined to choose better guesses.
 
+## Versioning and releases
+
+The project starts at **2.0.0**. The browser extension's `browser-extension/manifest.json` is the canonical version source; keep its `version` field synchronized with every release tag.
+
+This repository follows Semantic Versioning:
+
+- **Patch** (`2.0.1`): backward-compatible bug fixes and small corrections.
+- **Minor** (`2.1.0`): backward-compatible functionality.
+- **Major** (`3.0.0`): breaking changes.
+
+Release tags use a `v` prefix (for example, `v2.0.0`). Never move or reuse an existing release tag. Update the manifest and add a `CHANGELOG.md` entry before publishing a new version.
+
+### Publish a release
+
+1. Update `browser-extension/manifest.json` to the intended `MAJOR.MINOR.PATCH` version.
+2. Add the release notes to `CHANGELOG.md`.
+3. Push the changes to `main`.
+4. Open **Actions → Release → Run workflow**, enter the exact manifest version (starting with `2.0.0`), and run it.
+5. The workflow checks the version, creates the matching `vX.Y.Z` tag on `main`, and publishes a GitHub Release with generated notes. Future pushes of valid version tags also publish releases automatically.
+
+The workflow rejects malformed versions, manifest/tag mismatches, and attempts to reuse an existing tag.
+
 ## Features
 
 - **Browser extension (recommended):** analyzes the live Wordle board locally, filters possible answers, and ranks strategic guesses using feedback-pattern entropy.
