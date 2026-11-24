@@ -10,25 +10,21 @@
   <main>
     <div class="brand">
       <div class="logo">W</div>
-      <div><h1>Wordle Guesser</h1><p>Smart Solver · Version 2</p></div>
+      <div><h1>Wordle Guesser</h1><p>Local Solver · Version 2.0.1</p></div>
     </div>
-    <div class="intro">A local Wordle assistant that learns from every colored row.</div>
-    <div class="metrics">
-      <div><b>10,798</b><span>answer candidates</span></div>
-      <div><b>11,730</b><span>valid guess words</span></div>
-    </div>
+    <div class="intro">A local Wordle assistant that narrows the possible-answer list after every submitted guess.</div>
     <section>
-      <h2>Smarter suggestions</h2>
+      <h2>What it does</h2>
       <ul>
-        <li>Exact duplicate-letter feedback filtering.</li>
-        <li>Information-gain ranking across feedback patterns.</li>
-        <li>Expected remaining candidates and worst-case group size.</li>
-        <li>Letter frequencies and eliminated-letter tracking.</li>
+        <li>Applies every green, yellow, and gray tile to the answer list.</li>
+        <li>Handles repeated letters using Wordle’s two-pass feedback rules.</li>
+        <li>Shows matching possible answers and letter frequencies.</li>
+        <li>Checks candidates against the complete submitted guess history.</li>
       </ul>
     </section>
-    <div class="note">Open Wordle Archive or NYT Wordle. The analysis panel appears after a guess is evaluated. Suggestions are never entered automatically.</div>
+    <div class="note">Open NYT Wordle or Wordle Archive. The analysis panel updates after each guess is evaluated. The extension never enters guesses for you.</div>
     <p class="privacy">Everything runs locally in your browser. No board data is sent anywhere.</p>
-    <p class="source">Dictionary includes a Google Ngrams frequency list (CC BY 3.0) and this repository's simulation vocabulary.</p>
+    <p class="source">The bundled vocabulary is broad and may not exactly match every game's official answer list.</p>
   </main>
 </body>
 </html>

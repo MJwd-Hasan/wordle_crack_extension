@@ -2,13 +2,9 @@
 (() => {
   "use strict";
   const ANSWERS = (window.WORDLE_GUESSER_WORDS || []).filter(w => /^[a-z]{5}$/.test(w));
-  const GUESSES = (window.WORDLE_GUESSER_GUESSES || ANSWERS).filter(w => /^[a-z]{5}$/.test(w));
   const COMMON = window.WORDLE_GUESSER_COMMON || [];
   const COMMON_RANK = Object.create(null);
   COMMON.forEach((word, index) => { COMMON_RANK[word] = index; });
-  const ANSWER_SET = new Set(ANSWERS);
-  const MAX_ANSWER_GUESSES = 600;
-  const MAX_PROBE_GUESSES = 300;
 
   function getFeedback(guess, answer) {
     guess = String(guess || "").toLowerCase();
@@ -39,29 +35,6 @@
     return pool.filter(word => getFeedback(guess, word) === pattern);
   }
 
-  function feedbackCode(guessChars, answerChars, scratch) {
-    scratch.fill(0);
-    for (let i = 0; i < 5; i++) scratch[answerChars[i]]++;
-    let code = 0, multiplier = 1, greenMask = 0;
-    for (let i = 0; i < 5; i++) {
-      if (guessChars[i] === answerChars[i]) {
-        greenMask |= (1 << i);
-        code += 2 * multiplier;
-        scratch[guessChars[i]]--;
-      }
-      multiplier *= 3;
-    }
-    multiplier = 1;
-    for (let i = 0; i < 5; i++) {
-      if (!(greenMask & (1 << i)) && scratch[guessChars[i]] > 0) {
-        code += multiplier;
-        scratch[guessChars[i]]--;
-      }
-      multiplier *= 3;
-    }
-    return code;
-  }
-
   function buildLetterStats(pool) {
     const n = pool.length;
     const overall = new Float64Array(26);
@@ -80,49 +53,6 @@
     return { overall, positions };
   }
 
-  function heuristic(word, stats, isAnswer) {
-    let coverage = 0, positional = 0, mask = 0, unique = 0;
-    for (let i = 0; i < 5; i++) {
-      const c = word.charCodeAt(i) - 97;
-      positional += stats.positions[i][c];
-      const bit = 1 << c;
-      if (!(mask & bit)) { mask |= bit; coverage += stats.overall[c]; unique++; }
-    }
-    // Shortlist only: final ordering uses exact Wordle feedback entropy.
-    return 0.55 * coverage / 5 + 0.45 * positional / 5 -
-      (5 - unique) * 0.012 + (isAnswer ? 0.006 : 0);
-  }
-
-  function scoreGuess(guess, poolSize, candidateCodes) {
-    const counts = new Uint16Array(243);
-    const scratch = new Int8Array(26);
-    const guessChars = new Uint8Array(5);
-    for (let i = 0; i < 5; i++) guessChars[i] = guess.charCodeAt(i) - 97;
-    let worstCase = 0, sumSquares = 0;
-    for (let i = 0; i < candidateCodes.length; i++) {
-      const pattern = feedbackCode(guessChars, candidateCodes[i], scratch);
-      const count = ++counts[pattern];
-      if (count > worstCase) worstCase = count;
-    }
-    let entropy = 0;
-    for (let i = 0; i < counts.length; i++) {
-      const count = counts[i];
-      if (!count) continue;
-      const p = count / poolSize;
-      entropy -= p * Math.log2(p);
-      sumSquares += count * count;
-    }
-    const isAnswer = ANSWER_SET.has(guess);
-    return {
-      word: guess,
-      informationGain: entropy,
-      expectedRemaining: sumSquares / poolSize,
-      worstCase,
-      isAnswer,
-      solveChance: isAnswer ? 100 / poolSize : 0
-    };
-  }
-
   function getBlackLetters(history) {
     const seen = new Set(), positive = new Set();
     for (const row of history) {
@@ -135,24 +65,32 @@
     return [...seen].filter(ch => !positive.has(ch)).sort();
   }
 
+  function matchesHistory(word, history) {
+    return history.every(row => getFeedback(row.guess, word) === row.feedback);
+  }
+
   function analyze(history) {
     const cleanHistory = (history || []).filter(row =>
-      row && /^[a-z]{5}$/.test(String(row.guess || "").toLowerCase()) &&
-      /^[GYB]{5}$/.test(String(row.feedback || "").toUpperCase())
+      row && /^[a-z]{5}$/i.test(String(row.guess || "")) &&
+      /^[GYB]{5}$/i.test(String(row.feedback || ""))
     ).map(row => ({
       guess: String(row.guess).toLowerCase(),
       feedback: String(row.feedback).toUpperCase()
     }));
 
-    let candidates = ANSWERS.slice();
-    for (const row of cleanHistory) {
-      candidates = filterWords(row.guess, row.feedback, candidates);
-      if (!candidates.length) break;
-    }
-
-    const stats = buildLetterStats(candidates);
+    // Keep a word only when its recomputed feedback matches every submitted row.
+    const candidates = ANSWERS.filter(word => matchesHistory(word, cleanHistory));
     const n = candidates.length;
     const blackLetters = getBlackLetters(cleanHistory);
+
+    if (!n) return {
+      remaining: 0, blackLetters, letters: [], possibleAnswers: [],
+      vocabularySize: ANSWERS.length, shownAnswerCount: 0,
+      solved: cleanHistory.some(row => row.feedback === "GGGGG"),
+      noMatches: true
+    };
+
+    const stats = buildLetterStats(candidates);
     const letters = [];
     for (let c = 0; c < 26; c++) {
       if (stats.overall[c] > 0) letters.push({
@@ -160,89 +98,73 @@
         probability: stats.overall[c] * 100
       });
     }
-    letters.sort((a, b) => b.probability - a.probability || a.letter.localeCompare(b.letter));
-
-    if (!n) return {
-      remaining: 0, blackLetters, letters: [], words: [], possibleAnswers: [],
-      vocabularySize: ANSWERS.length, guessVocabularySize: GUESSES.length,
-      scoredGuessCount: 0, solved: false, noMatches: true
-    };
-
-    const candidateCodes = candidates.map(word => {
-      const codes = new Uint8Array(5);
-      for (let i = 0; i < 5; i++) codes[i] = word.charCodeAt(i) - 97;
-      return codes;
-    });
-
-    const answerLimit = candidates.length <= 1800 ? candidates.length : MAX_ANSWER_GUESSES;
-    const answerShortlist = candidates.map(word => ({
-      word, rank: heuristic(word, stats, true)
-    })).sort((a, b) => b.rank - a.rank || a.word.localeCompare(b.word))
-      .slice(0, answerLimit);
-
-    const candidateSet = new Set(candidates);
-    const probeShortlist = GUESSES.filter(word => !candidateSet.has(word))
-      .map(word => ({ word, rank: heuristic(word, stats, false) }))
-      .sort((a, b) => b.rank - a.rank || a.word.localeCompare(b.word))
-      .slice(0, MAX_PROBE_GUESSES);
-
-    const guesses = [...answerShortlist, ...probeShortlist];
-    const scored = guesses.map(item => scoreGuess(item.word, n, candidateCodes));
-    scored.sort((a, b) =>
-      b.informationGain - a.informationGain ||
-      a.expectedRemaining - b.expectedRemaining ||
-      Number(b.isAnswer) - Number(a.isAnswer) ||
-      a.word.localeCompare(b.word)
+    letters.sort((x, y) =>
+      y.probability - x.probability || x.letter.localeCompare(y.letter)
     );
 
     const commonRank = word => Object.prototype.hasOwnProperty.call(COMMON_RANK, word)
       ? COMMON_RANK[word] : Number.MAX_SAFE_INTEGER;
-    const possibleAnswers = candidates.slice().sort((a, b) =>
-      commonRank(a) - commonRank(b) || a.localeCompare(b)
-    ).slice(0, 20).map(word => ({
-      word, chance: 100 / n, commonWord: commonRank(word) !== Number.MAX_SAFE_INTEGER
+    const sortedCandidates = candidates.slice().sort((x, y) =>
+      commonRank(x) - commonRank(y) || x.localeCompare(y)
+    );
+    const possibleAnswers = sortedCandidates.slice(0, 50).map(word => ({
+      word, chance: 100 / n,
+      commonWord: commonRank(word) !== Number.MAX_SAFE_INTEGER
     }));
 
     return {
-      remaining: n,
-      blackLetters,
-      letters: letters.slice(0, 15),
-      words: scored.slice(0, 10),
-      possibleAnswers,
-      vocabularySize: ANSWERS.length,
-      guessVocabularySize: GUESSES.length,
-      scoredGuessCount: scored.length,
+      remaining: n, blackLetters, letters: letters.slice(0, 15),
+      possibleAnswers, vocabularySize: ANSWERS.length,
+      shownAnswerCount: possibleAnswers.length,
       solved: cleanHistory.some(row => row.feedback === "GGGGG"),
       noMatches: false
     };
   }
 
   function selfTest() {
-    const tests = [
-      ["allee", "apple", "GYBBG"],
-      ["sassy", "class", "YYBGB"],
-      ["eerie", "refer", "YGYBB"]
+    const examples = [
+      { guess: "allee", answer: "apple", expected: "GYBBG" },
+      { guess: "sassy", answer: "class", expected: "YYBGB" },
+      { guess: "eerie", answer: "refer", expected: "YGYBB" }
     ];
-    function decodePattern(code) {
-      let out = "";
-      for (let i = 0; i < 5; i++) {
-        const digit = code % 3;
-        out += digit === 2 ? "G" : digit === 1 ? "Y" : "B";
-        code = Math.floor(code / 3);
-      }
-      return out;
-    }
-    return tests.map(([guess, answer, expected]) => {
-      const guessChars = Uint8Array.from([...guess].map(ch => ch.charCodeAt(0) - 97));
-      const answerChars = Uint8Array.from([...answer].map(ch => ch.charCodeAt(0) - 97));
-      const fastFeedback = decodePattern(feedbackCode(guessChars, answerChars, new Int8Array(26)));
-      const actual = getFeedback(guess, answer);
+    const feedbackTests = examples.map(test => {
+      const actual = getFeedback(test.guess, test.answer);
+      return { ...test, actual, pass: actual === test.expected };
+    });
+    const pool = [...new Set([
+      ...examples.map(test => test.answer),
+      "apply", "ample", "glass", "racer"
+    ])];
+    const filteringTests = examples.map(test => {
+      const filtered = filterWords(test.guess, test.expected, pool);
+      const allResultsMatch = filtered.every(word =>
+        getFeedback(test.guess, word) === test.expected
+      );
       return {
-        guess, answer, expected, actual, fastFeedback,
-        pass: actual === expected && fastFeedback === expected
+        guess: test.guess, answer: test.answer,
+        answerRetained: filtered.includes(test.answer),
+        allResultsMatch,
+        pass: filtered.includes(test.answer) && allResultsMatch
       };
     });
+    const history = [
+      { guess: "allee", feedback: "GYBBG" },
+      { guess: "crane", feedback: getFeedback("crane", "apple") }
+    ];
+    const multiRow = pool.filter(word => matchesHistory(word, history));
+    const multiRowPass = multiRow.includes("apple") &&
+      multiRow.every(word => matchesHistory(word, history));
+    return {
+      feedbackTests, filteringTests,
+      multiRowTest: {
+        answerRetained: multiRow.includes("apple"),
+        allResultsMatch: multiRow.every(word => matchesHistory(word, history)),
+        pass: multiRowPass
+      },
+      pass: feedbackTests.every(test => test.pass) &&
+        filteringTests.every(test => test.pass) && multiRowPass
+    };
   }
 
-  window.WordleGuesserEngine = { analyze, getFeedback, filterWords, selfTest };
+  window.WordleGuesserEngine = { analyze, getFeedback, filterWords, matchesHistory, selfTest };
 })();

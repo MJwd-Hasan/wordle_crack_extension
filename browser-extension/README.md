@@ -1,17 +1,16 @@
 # Wordle Guesser browser extension
 
-A Manifest V3 extension for Chrome and Microsoft Edge. Version 2 upgrades the original `manual_player.py` port with a larger vocabulary, exact feedback-pattern scoring, and a redesigned analysis panel.
+A Manifest V3 extension for Chrome and Microsoft Edge. Version **2.0.1** focuses on filtering possible answers from the complete submitted board history.
 
-## What's new in v2
+## Features
 
-- **10,798 answer candidates**: five-letter entries from the 50,000-word Google Ngrams frequency list, combined with all target words in this repository's 8,000-game simulation dataset.
-- **11,730 allowed guesses**: the answer candidates plus five-letter words found in the simulation guess history and the frequency list.
-- **Entropy-based strategy**: ranks strategic guesses by the Shannon information in their possible green/yellow/gray feedback patterns (up to 243 outcomes).
-- Shows expected remaining candidates and the largest possible remaining group, not just a letter-frequency score.
-- Separates strategic probe guesses from possible answers.
-- Displays letter frequencies, eliminated letters, and an explicitly qualified equal-list candidate chance.
-- Duplicate-letter feedback remains handled with Wordle's two-pass rules.
-- Keeps all processing local; it never submits guesses or sends board data to a server.
+- A bundled five-letter answer vocabulary sourced from the repository's existing vocabulary files.
+- Exact green, yellow, and gray feedback matching, including repeated-letter rules.
+- Candidate checks against **every submitted row**; every displayed answer must satisfy the complete detected feedback history.
+- A list of up to 50 matching possible answers, letter frequencies, eliminated letters, and a diagnostic summary of the detected board.
+- Local-only processing. The extension never submits guesses or sends board data to a server.
+
+The extension no longer displays best-strategic-guess or probe-word recommendations.
 
 ## Install in Chrome / Edge
 
@@ -21,27 +20,27 @@ A Manifest V3 extension for Chrome and Microsoft Edge. Version 2 upgrades the or
 4. Select this `browser-extension` directory.
 5. Refresh the Wordle page.
 
-## How the ranking works
+## How answer filtering works
 
-For each turn, the extension filters the answer dictionary against every submitted row using exact Wordle feedback. It then evaluates a shortlist of possible answer guesses and non-answer probe guesses by simulating their feedback against every remaining answer. The ranked score is the entropy of the resulting feedback groups; the panel also reports expected candidates remaining and the worst-case group size.
+For each bundled answer, the engine recomputes Wordle's exact feedback for every submitted guess and retains the word only when it matches every row. Greens are allocated first; yellows are then allocated from the remaining copies of each letter. This correctly handles guesses containing repeated letters.
 
-A lightweight letter/position score is used only to choose a computationally manageable shortlist before exact entropy scoring. It is not the final ranking formula.
+The content script uses the native board-row parser when it recognizes NYT Wordle or Wordle Archive rows. It does not combine native and generic fallback parsers for the same board, avoiding duplicate or conflicting interpretations of a row. Generic parsing is used only when no supported native row container is detected.
 
-The displayed “% of list” is (100 / N), assuming all (N) remaining entries in this broad answer dictionary are equally likely. It is **not** a calibrated probability of the official NYT answer.
+If no bundled dictionary word matches, the panel displays the detected guesses and board diagnostics. This can indicate a board-reading issue or that the game's answer is absent from the broad local dictionary; it does not change the Wordle board.
+
+The displayed “% of list” assumes all remaining dictionary entries are equally likely. It is **not** a calibrated probability of the official NYT answer. The vocabulary is not an official NYT or Wordle Archive answer list, so some game-specific answers may be missing and some listed words may not be accepted by a particular game.
 
 ## Vocabulary sources and attribution
 
 - Google Ngrams-derived frequency list: [david47k/top-english-wordlists](https://github.com/david47k/top-english-wordlists), file `top_english_words_lower_50000.txt`. The upstream repository states the compilation is licensed under **Creative Commons Attribution 3.0 Unported** and attributes the data to Google Books Ngrams (English dataset, 1950–2012).
-- Additional target and guess words: this repository's `wordle_8000_simulations.csv`.
-
-The broad vocabulary improves coverage but is not an official NYT/Wordle Archive answer list. It may contain entries a particular game does not accept as an answer, and a game's answer list may still contain words not represented here.
+- Additional target words: this repository's `wordle_8000_simulations.csv`.
 
 ## Files
 
-- `manifest.json` — site/frame permissions and content-script loading.
-- `words.js` — bundled answer and allowed-guess vocabularies.
-- `engine.js` — feedback filtering, letter statistics, and entropy ranking.
-- `content.js` — board detection and analysis UI.
+- `manifest.json` — site/frame permissions and extension version.
+- `words.js` — bundled answer vocabulary and frequency ordering.
+- `engine.js` — exact feedback generation, full-history candidate filtering, and letter statistics.
+- `content.js` — board detection, diagnostics, and possible-answer UI.
 - `popup.html`, `popup.css` — extension popup.
 
 No remote requests, analytics, or automatic guess submission.

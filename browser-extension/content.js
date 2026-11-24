@@ -142,56 +142,65 @@
       add(result);
     }
 
-    // Generic archive / clone fallback: group recognized tiles by their row
-    // container. This also covers variants that do not use custom elements.
-    const genericTiles = elements.filter(el => el.matches?.(
-      '[data-testid="tile"], [data-state], [data-status], [data-letter], [evaluation], .tile, [class*="tile" i], [role="gridcell"]'
-    ));
-    const groups = new Map();
-    for (const tile of genericTiles) {
-      if (tile.closest?.("#wordle-guesser-overlay")) continue;
-      const parent = tile.parentElement;
-      if (!parent) continue;
-      if (!groups.has(parent)) groups.set(parent, []);
-      groups.get(parent).push(tile);
-    }
-    for (const group of groups.values()) {
-      if (group.length < 5) continue;
-      rowCount++;
-      const parsed = group.slice(0, 5).map(readTile);
-      tileCount += group.length;
-      evaluatedTileCount += parsed.filter(t => t.feedback).length;
-      add(validRow(parsed));
-    }
-
-    // CSS-module fallback: some NYT builds expose Tile-module_tile classes
-    // without data-testid/data-state attributes. Cluster five tile-like
-    // descendants under their nearest shared row container.
-    const tileLike = elements.filter(el =>
-      /tile/i.test(typeof el.className === "string" ? el.className : "") &&
-      !el.closest?.("#wordle-guesser-overlay")
-    );
-    const tileSet = new Set(tileLike);
-    const candidateRows = new Set();
-    for (const tile of tileLike) {
-      let ancestor = tile.parentElement;
-      for (let depth = 0; ancestor && depth < 5; depth++, ancestor = ancestor.parentElement) {
-        const descendants = Array.from(ancestor.querySelectorAll?.("*") || [])
-          .filter(el => tileSet.has(el));
-        if (descendants.length === 5) {
-          candidateRows.add(ancestor);
-          break;
-        }
-        if (descendants.length > 5) break;
+    // Prefer native board parsers when recognized. Combining parser families can
+    // read one row differently and add contradictory constraints, hiding valid answers.
+    if (!nytRows.length && !gameRows.length) {
+      // Generic archive / clone fallback: group recognized tiles by their row
+      // container. This also covers variants that do not use custom elements.
+      const genericTiles = elements.filter(el => el.matches?.(
+        '[data-testid="tile"], [data-state], [data-status], [data-letter], [evaluation], .tile, [class*="tile" i], [role="gridcell"]'
+      ));
+      const groups = new Map();
+      for (const tile of genericTiles) {
+        if (tile.closest?.("#wordle-guesser-overlay")) continue;
+        const parent = tile.parentElement;
+        if (!parent) continue;
+        if (!groups.has(parent)) groups.set(parent, []);
+        groups.get(parent).push(tile);
       }
-    }
-    for (const row of candidateRows) {
-      rowCount++;
-      const tiles = Array.from(row.querySelectorAll("*")).filter(el => tileSet.has(el));
-      tileCount += tiles.length;
-      const parsed = tiles.map(readTile);
-      evaluatedTileCount += parsed.filter(t => t.feedback).length;
-      add(validRow(parsed));
+      for (const group of groups.values()) {
+        if (group.length !== 5) continue;
+        rowCount++;
+        const parsed = group.slice(0, 5).map(readTile);
+        tileCount += group.length;
+        evaluatedTileCount += parsed.filter(t => t.feedback).length;
+        add(validRow(parsed));
+      }
+
+
+      if (!history.length) {
+      // CSS-module fallback: some NYT builds expose Tile-module_tile classes
+      // without data-testid/data-state attributes. Cluster five tile-like
+      // descendants under their nearest shared row container.
+      const tileLike = elements.filter(el =>
+        /tile/i.test(typeof el.className === "string" ? el.className : "") &&
+        !el.closest?.("#wordle-guesser-overlay")
+      );
+      const tileSet = new Set(tileLike);
+      const candidateRows = new Set();
+      for (const tile of tileLike) {
+        let ancestor = tile.parentElement;
+        for (let depth = 0; ancestor && depth < 5; depth++, ancestor = ancestor.parentElement) {
+          const descendants = Array.from(ancestor.querySelectorAll?.("*") || [])
+            .filter(el => tileSet.has(el));
+          if (descendants.length === 5) {
+            candidateRows.add(ancestor);
+            break;
+          }
+          if (descendants.length > 5) break;
+        }
+      }
+      for (const row of candidateRows) {
+        rowCount++;
+        const tiles = Array.from(row.querySelectorAll("*")).filter(el => tileSet.has(el));
+        tileCount += tiles.length;
+        const parsed = tiles.map(readTile);
+        evaluatedTileCount += parsed.filter(t => t.feedback).length;
+        add(validRow(parsed));
+      }
+
+
+      }
     }
 
     const boardLike = elements.filter(el => {
@@ -246,7 +255,7 @@
       .error{color:#a33232;background:#fff2f1;border:1px solid #f0d4d1;padding:10px;border-radius:10px}
       .diag{font-size:10px;color:#89948e;margin-top:10px;border-top:1px solid #e6ece8;padding-top:8px;overflow-wrap:anywhere}
       .footer{font-size:10px;color:#78847e;margin-top:12px;text-align:center}
-    </style><div class="card"><header><div class="brand"><span class="mark">W</span><div><strong>Wordle Guesser</strong><small>SMART ANALYSIS · V2</small></div></div><button id="close" aria-label="Close">×</button></header><div class="body" id="body"></div></div>`;
+    </style><div class="card"><header><div class="brand"><span class="mark">W</span><div><strong>Wordle Guesser</strong><small>LIVE ANSWER FILTER · V2.0.1</small></div></div><button id="close" aria-label="Close">×</button></header><div class="body" id="body"></div></div>`;
     root.getElementById("close").addEventListener("click", () => panel.remove());
     document.documentElement.appendChild(panel);
   }
@@ -270,23 +279,17 @@
     ensurePanel();
     const body = root.getElementById("body");
     if (!history.length) {
-      body.innerHTML = '<div class="empty">Make a guess and submit it to see live analysis.</div>' + diagnosticText();
+      body.innerHTML = '<div class="empty">Make a guess and submit it to see the remaining possible answers.</div>' + diagnosticText();
       return;
     }
     const historyMarkup = '<div class="chips history">' + history.map(h =>
       '<span class="chip">' + escapeHTML(h.guess.toUpperCase()) + ' · ' + escapeHTML(h.feedback) + '</span>'
     ).join("") + '</div>';
     if (data.noMatches) {
-      body.innerHTML = '<div class="error"><b>No dictionary candidates match the detected feedback.</b><br>Check the colored row or report the guess and feedback so the lexicon can be improved.</div>' +
+      body.innerHTML = '<div class="error"><b>No dictionary answers match all detected feedback.</b><br>The board may have been read incorrectly, or the game may use an answer missing from the bundled dictionary. Check the detected rows below; your Wordle board has not been changed.</div>' +
         historyMarkup + diagnosticText();
       return;
     }
-    const strategyRows = data.words.map((item, i) =>
-      '<div class="word"><div><span class="wordname">' + escapeHTML(item.word.toUpperCase()) + '</span>' +
-      (item.isAnswer ? '<span class="tag">POSSIBLE ANSWER</span>' : '<span class="tag probe">PROBE</span>') +
-      '</div><div class="metrics">' + item.informationGain.toFixed(2) + ' bits · ~' +
-      item.expectedRemaining.toFixed(1) + ' left · worst ' + item.worstCase + '</div></div>'
-    ).join("");
     const answerRows = data.possibleAnswers.map(item =>
       '<div class="answer"><b>' + escapeHTML(item.word.toUpperCase()) + '</b><span>' +
       item.chance.toFixed(item.chance < 1 ? 2 : 1) + '% of list</span></div>'
@@ -294,22 +297,26 @@
     const letterRows = data.letters.map(item =>
       '<span class="chip">' + item.letter.toUpperCase() + ' ' + item.probability.toFixed(1) + '%</span>'
     ).join("");
-    const blackRows = data.blackLetters.map(ch => '<span class="chip">' + ch.toUpperCase() + '</span>').join("");
+    const blackRows = data.blackLetters.map(ch =>
+      '<span class="chip">' + ch.toUpperCase() + '</span>'
+    ).join("");
     body.innerHTML =
-      '<div class="stats"><div class="stat"><b>' + data.remaining.toLocaleString() + '</b><span>possible answers</span></div>' +
+      '<div class="stats"><div class="stat"><b>' + data.remaining.toLocaleString() + '</b><span>matching answers</span></div>' +
       '<div class="stat"><b>' + data.vocabularySize.toLocaleString() + '</b><span>answer dictionary</span></div>' +
-      '<div class="stat"><b>' + data.guessVocabularySize.toLocaleString() + '</b><span>valid guesses</span></div></div>' +
+      '<div class="stat"><b>' + history.length + '</b><span>submitted guesses</span></div></div>' +
       (data.solved ? '<div class="empty"><b>Congratulations — the answer was found!</b></div>' : '') +
-      '<div class="section">Best strategic guesses <small>ranked by information gain</small></div>' +
-      (strategyRows || '<div class="empty">No strategic guesses available.</div>') +
-      '<div class="section">Possible answers <small>equal chance within current list</small></div>' +
+      '<div class="section">Possible answers <small>showing ' + data.shownAnswerCount + ' of ' + data.remaining + '</small></div>' +
       '<div class="answers">' + (answerRows || '<span class="muted">None</span>') + '</div>' +
+      (data.remaining > data.shownAnswerCount
+        ? '<div class="notice">The list is limited to the first 50 matching words. Every displayed word satisfies all detected green, yellow, and gray feedback.</div>'
+        : '') +
       '<div class="section">Letter frequency <small>share of candidates containing each letter</small></div>' +
       '<div class="chips">' + (letterRows || '<span class="muted">None</span>') + '</div>' +
-      '<div class="section">Eliminated letters</div><div class="chips">' + (blackRows || '<span class="muted">None</span>') + '</div>' +
-      '<div class="notice">Information gain is calculated from the 243 possible feedback patterns. “% of list” assumes every remaining answer is equally likely; it is not an official NYT answer probability.</div>' +
+      '<div class="section">Eliminated letters</div><div class="chips">' +
+      (blackRows || '<span class="muted">None</span>') + '</div>' +
+      '<div class="notice">Candidates are checked against every submitted row using Wordle’s duplicate-letter rules. “% of list” assumes all remaining dictionary entries are equally likely; it is not an official NYT answer probability.</div>' +
       historyMarkup +
-      '<div class="footer">Scored ' + data.scoredGuessCount + ' candidate and probe words · runs locally</div>' +
+      '<div class="footer">Filtered locally in your browser · no guesses are entered automatically</div>' +
       diagnosticText();
   }
 

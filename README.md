@@ -28,7 +28,7 @@ The workflow rejects malformed versions, manifest/tag mismatches, and attempts t
 
 ## Features
 
-- **Browser extension (recommended):** analyzes the live Wordle board locally, filters possible answers, and ranks strategic guesses using feedback-pattern entropy.
+- **Browser extension (recommended):** analyzes the live Wordle board locally and shows only possible answers that satisfy every submitted row.
 - **Manual assistant:** enter each guess and its green/yellow/gray feedback to receive a filtered candidate list, letter frequencies, and weighted suggestions.
 - **Algorithm experiments:** basic candidate filtering and a comparison of fixed opening-guess combinations.
 - **Simulation dataset:** generate and store up to 8,000 simulated games.
@@ -58,15 +58,15 @@ The browser extension is the recommended way to use this project during an actua
 1. Start a Wordle game and enter your first five-letter guess as usual.
 2. Submit the guess in Wordle so the board reveals its green, yellow, and gray tiles.
 3. The extension reads the board feedback and updates its analysis panel.
-4. Review the remaining possible answers and the ranked strategic guesses. The panel distinguishes possible answers from probe guesses that may be useful for gathering information.
+4. Review the remaining possible answers. Every displayed word is checked against all submitted green, yellow, and gray feedback.
 5. Choose a suggested word, enter it in Wordle, and submit it.
-6. Repeat the process after each row is evaluated. The candidate list and rankings update as more feedback becomes available.
+6. Repeat the process after each row is evaluated. The possible-answer list updates as more feedback becomes available.
 
 ### What the extension shows
 
 - Remaining answer candidates after applying all visible feedback.
-- Strategic guesses ranked using the information (Shannon entropy) their possible feedback patterns provide.
-- Expected number of candidates remaining and the largest possible remaining group.
+- Possible answers that match every submitted row, including repeated-letter feedback.
+- A diagnostic summary when no bundled dictionary entry matches the detected board.
 - Letter frequencies and eliminated-letter information.
 - A candidate-list percentage based on the simplifying assumption that all remaining dictionary entries are equally likely. This is **not** a calibrated probability of the official daily answer.
 
@@ -224,11 +224,11 @@ Enter a five-letter target word to simulate a game, or enter `quit` to exit. The
 
 **Important:** repeated letters require careful feedback handling. The browser extension and `manual_player.py` use two-pass feedback logic to account for duplicate letters. The earlier demonstration scripts (`algorithm.py` and `data_generator.py`) use a simplified membership-based feedback rule, so their results are experimental rather than an exact implementation of every Wordle duplicate-letter case.
 
-## How the browser extension ranks guesses
+## How the browser extension filters answers
 
-The extension first filters the answer candidates using the complete feedback pattern. It then simulates possible feedback outcomes for candidate guesses and ranks guesses by Shannon entropy: guesses that divide the remaining answer set into more informative groups tend to rank higher. A preliminary letter/position score limits the number of guesses that need full entropy evaluation.
+For each bundled answer, the extension recomputes exact Wordle feedback for every submitted guess and retains the word only when it matches every row. Greens are allocated before yellows so repeated letters are handled correctly. The extension no longer displays strategic-guess or probe-word recommendations.
 
-The displayed candidate-list percentage assumes all remaining dictionary entries are equally likely. It is not a calibrated probability of the official daily answer.
+The displayed candidate-list percentage assumes all remaining dictionary entries are equally likely. It is not a calibrated probability of the official daily answer. The bundled vocabulary is broad rather than an official game answer list, so an empty result can also mean that the game's answer is missing from the local dictionary.
 
 ## Notes and limitations
 

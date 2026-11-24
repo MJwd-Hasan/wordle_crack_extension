@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "Wordle Guesser — Manual Player",
-  "version": "2.0.0",
-  "description": "Wordle helper with a larger dictionary and entropy-ranked suggestions.",
+  "version": "2.0.1",
+  "description": "Local Wordle assistant that filters possible answers from submitted tile feedback.",
   "permissions": [],
   "host_permissions": [
     "https://wordlearchive.org/*",
