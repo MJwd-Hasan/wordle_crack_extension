@@ -7,7 +7,7 @@
   "host_permissions": [
     "https://wordlearchive.org/*",
     "https://www.wordlearchive.org/*",
-    "https://www.nytimes.com/games/wordle/*"
+    "https://*.nytimes.com/games/wordle/*"
   ],
   "action": {
     "default_popup": "popup.html",
@@ -18,7 +18,7 @@
       "matches": [
         "https://wordlearchive.org/*",
         "https://www.wordlearchive.org/*",
-        "https://www.nytimes.com/games/wordle/*"
+        "https://*.nytimes.com/games/wordle/*"
       ],
       "js": [
         "words.js",
