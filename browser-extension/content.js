@@ -218,59 +218,98 @@
     panel.id = "wordle-guesser-overlay";
     Object.assign(panel.style, {
       position: "fixed", right: "16px", bottom: "16px",
-      zIndex: "2147483647", width: "min(380px,calc(100vw - 32px))"
+      zIndex: "2147483647", width: "min(430px,calc(100vw - 32px))"
     });
     root = panel.attachShadow({ mode: "open" });
     root.innerHTML = `<style>
-      *{box-sizing:border-box}.card{font:13px/1.45 system-ui,sans-serif;color:#202124;background:#fff;border:1px solid #d9dce1;border-radius:14px;box-shadow:0 8px 32px #0003;overflow:hidden}
-      header{display:flex;align-items:center;justify-content:space-between;padding:12px 14px;background:#202124;color:white;font-weight:700}
-      button{border:0;background:transparent;color:inherit;font-size:18px;cursor:pointer}.body{padding:12px 14px;max-height:55vh;overflow:auto}
-      .muted{color:#687078}.chips{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0}.chip{background:#f0f2f4;border-radius:6px;padding:4px 7px;font-variant-numeric:tabular-nums}
-      .word{display:flex;justify-content:space-between;padding:6px 8px;border-bottom:1px solid #eee}.word:first-child{font-weight:700;background:#f4f7f4}
-      .section{margin-top:12px;font-weight:700}.red{color:#b42318}.diag{font-size:11px;color:#687078;margin-top:10px;border-top:1px solid #eee;padding-top:7px}
-    </style><div class="card"><header><span>Wordle Guesser</span><button id="close" aria-label="Close">×</button></header><div class="body" id="body"></div></div>`;
+      *{box-sizing:border-box}
+      .card{font:13px/1.45 Inter,ui-sans-serif,system-ui,sans-serif;color:#1c2926;background:#fbfcfa;border:1px solid #dce5df;border-radius:18px;box-shadow:0 14px 42px #14231d35;overflow:hidden}
+      header{display:flex;align-items:center;justify-content:space-between;padding:13px 16px;background:#18332b;color:#fff}
+      .brand{display:flex;align-items:center;gap:10px}.mark{width:28px;height:28px;border-radius:9px;background:#d8f1df;color:#18332b;display:grid;place-items:center;font-weight:900}
+      .brand strong{display:block;font-size:14px;letter-spacing:.1px}.brand small{display:block;color:#b8d1c4;font-size:10px;letter-spacing:1.1px}
+      button{border:0;background:transparent;color:inherit;font-size:21px;cursor:pointer;line-height:1}
+      .body{padding:14px 15px;max-height:68vh;overflow:auto}
+      .muted{color:#65736d}.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin-bottom:14px}
+      .stat{border:1px solid #e1e9e4;border-radius:11px;padding:8px 9px;background:#fff}
+      .stat b{display:block;font-size:17px;line-height:1.2;color:#1d392e}.stat span{font-size:10px;color:#68766f}
+      .section{display:flex;align-items:center;justify-content:space-between;margin:13px 0 7px;font-weight:750;font-size:12px;color:#293d34}
+      .section small{font-size:10px;font-weight:500;color:#78847e}
+      .word{display:grid;grid-template-columns:76px 1fr;gap:8px;align-items:center;padding:8px 9px;border:1px solid #e6ece8;border-radius:10px;background:#fff;margin:5px 0}
+      .wordname{font-weight:850;letter-spacing:1.3px;font-size:14px}.metrics{font-size:10px;color:#65736d}
+      .tag{display:inline-block;font-size:9px;border-radius:5px;padding:2px 5px;margin-left:4px;background:#e7f2eb;color:#28553f;letter-spacing:.2px}
+      .tag.probe{background:#eef0f7;color:#4b5279}.answers{display:flex;flex-wrap:wrap;gap:6px}
+      .answer{border:1px solid #e0e8e2;background:#fff;border-radius:8px;padding:6px 8px;min-width:65px}
+      .answer b{display:block;letter-spacing:1px;font-size:12px}.answer span{font-size:9px;color:#748078}
+      .chips{display:flex;flex-wrap:wrap;gap:5px}.chip{background:#edf2ee;border-radius:7px;padding:4px 7px;font-size:11px;font-variant-numeric:tabular-nums}
+      .history{font-size:10px;letter-spacing:.7px}.empty{padding:12px;border:1px dashed #cbd8d0;border-radius:11px;color:#64736b;background:#fff}
+      .notice{padding:9px 10px;border-radius:10px;background:#f1f5f2;color:#5d6d64;font-size:10px;margin-top:10px}
+      .error{color:#a33232;background:#fff2f1;border:1px solid #f0d4d1;padding:10px;border-radius:10px}
+      .diag{font-size:10px;color:#89948e;margin-top:10px;border-top:1px solid #e6ece8;padding-top:8px;overflow-wrap:anywhere}
+      .footer{font-size:10px;color:#78847e;margin-top:12px;text-align:center}
+    </style><div class="card"><header><div class="brand"><span class="mark">W</span><div><strong>Wordle Guesser</strong><small>SMART ANALYSIS · V2</small></div></div><button id="close" aria-label="Close">×</button></header><div class="body" id="body"></div></div>`;
     root.getElementById("close").addEventListener("click", () => panel.remove());
     document.documentElement.appendChild(panel);
   }
 
+  function escapeHTML(value) {
+    return String(value ?? "").replace(/[&<>"']/g, ch => ({
+      "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;"
+    })[ch]);
+  }
+
   function diagnosticText() {
     const d = lastDiagnostics || { host: location.hostname, rows: 0, tiles: 0, evaluated: 0 };
-    return '<div class="diag">Site: ' + d.host + '<br>Board rows: ' + d.rows +
-      ' · tiles: ' + d.tiles + ' · colored: ' + d.evaluated +
-      '<br>Board-like elements: ' + (d.boardLike || 0) +
-      '<br>Class samples: ' + (d.sampleClasses || []).join(' | ') +
-      '<br>If rows and tiles remain 0, the game board may be in another frame or use a different rendering structure.</div>';
+    const samples = (d.sampleClasses || []).map(escapeHTML).join(" · ");
+    return '<div class="diag">Detector: ' + escapeHTML(d.host) +
+      ' · rows ' + (d.rows || 0) + ' · tiles ' + (d.tiles || 0) +
+      ' · feedback ' + (d.evaluated || 0) +
+      (samples ? '<br>Board elements: ' + samples : '') + '</div>';
   }
 
   function render(history, data) {
     ensurePanel();
     const body = root.getElementById("body");
     if (!history.length) {
-      body.innerHTML = '<span class="muted">Waiting for a completed guess…</span>' + diagnosticText();
+      body.innerHTML = '<div class="empty">Make a guess and submit it to see live analysis.</div>' + diagnosticText();
       return;
     }
-    if (!data.remaining) {
-      body.innerHTML = '<p class="red">A completed row was read, but no candidate words match it. The detected feedback is shown below so we can check the parser.</p>' +
-        '<div class="chips">' + history.map(h => '<span class="chip">' + h.guess.toUpperCase() + ' · ' + h.feedback + '</span>').join("") + '</div>' +
-        diagnosticText();
+    const historyMarkup = '<div class="chips history">' + history.map(h =>
+      '<span class="chip">' + escapeHTML(h.guess.toUpperCase()) + ' · ' + escapeHTML(h.feedback) + '</span>'
+    ).join("") + '</div>';
+    if (data.noMatches) {
+      body.innerHTML = '<div class="error"><b>No dictionary candidates match the detected feedback.</b><br>Check the colored row or report the guess and feedback so the lexicon can be improved.</div>' +
+        historyMarkup + diagnosticText();
       return;
     }
-    const rows = data.words.map((x, i) =>
-      '<div class="word"><span>' + (i + 1) + '. ' + x.word.toUpperCase() +
-      '</span><span>' + x.probability.toFixed(2) + '%</span></div>'
+    const strategyRows = data.words.map((item, i) =>
+      '<div class="word"><div><span class="wordname">' + escapeHTML(item.word.toUpperCase()) + '</span>' +
+      (item.isAnswer ? '<span class="tag">POSSIBLE ANSWER</span>' : '<span class="tag probe">PROBE</span>') +
+      '</div><div class="metrics">' + item.informationGain.toFixed(2) + ' bits · ~' +
+      item.expectedRemaining.toFixed(1) + ' left · worst ' + item.worstCase + '</div></div>'
     ).join("");
-    const letters = data.letters.map(x =>
-      '<span class="chip">' + x.letter.toUpperCase() + ' ' + x.probability.toFixed(1) + '%</span>'
+    const answerRows = data.possibleAnswers.map(item =>
+      '<div class="answer"><b>' + escapeHTML(item.word.toUpperCase()) + '</b><span>' +
+      item.chance.toFixed(item.chance < 1 ? 2 : 1) + '% of list</span></div>'
     ).join("");
-    body.innerHTML = '<div class="muted">Guesses analyzed: ' + history.length +
-      ' · Candidates: <b>' + data.remaining + '</b></div>' +
-      '<div class="section">Top weighted suggestions</div>' + rows +
-      '<div class="section">Letter probabilities</div><div class="chips">' +
-      (letters || '<span class="muted">None</span>') + '</div>' +
-      '<div class="section">Eliminated letters</div><div class="chips">' +
-      (data.blackLetters.map(x => '<span class="chip">' + x.toUpperCase() + '</span>').join("") ||
-      '<span class="muted">None</span>') + '</div>' +
-      '<p class="muted">Scoring: 60% positional + 40% unique-letter frequency. Suggestions only; no guesses are entered automatically.</p>' +
+    const letterRows = data.letters.map(item =>
+      '<span class="chip">' + item.letter.toUpperCase() + ' ' + item.probability.toFixed(1) + '%</span>'
+    ).join("");
+    const blackRows = data.blackLetters.map(ch => '<span class="chip">' + ch.toUpperCase() + '</span>').join("");
+    body.innerHTML =
+      '<div class="stats"><div class="stat"><b>' + data.remaining.toLocaleString() + '</b><span>possible answers</span></div>' +
+      '<div class="stat"><b>' + data.vocabularySize.toLocaleString() + '</b><span>answer dictionary</span></div>' +
+      '<div class="stat"><b>' + data.guessVocabularySize.toLocaleString() + '</b><span>valid guesses</span></div></div>' +
+      (data.solved ? '<div class="empty"><b>Congratulations — the answer was found!</b></div>' : '') +
+      '<div class="section">Best strategic guesses <small>ranked by information gain</small></div>' +
+      (strategyRows || '<div class="empty">No strategic guesses available.</div>') +
+      '<div class="section">Possible answers <small>equal chance within current list</small></div>' +
+      '<div class="answers">' + (answerRows || '<span class="muted">None</span>') + '</div>' +
+      '<div class="section">Letter frequency <small>share of candidates containing each letter</small></div>' +
+      '<div class="chips">' + (letterRows || '<span class="muted">None</span>') + '</div>' +
+      '<div class="section">Eliminated letters</div><div class="chips">' + (blackRows || '<span class="muted">None</span>') + '</div>' +
+      '<div class="notice">Information gain is calculated from the 243 possible feedback patterns. “% of list” assumes every remaining answer is equally likely; it is not an official NYT answer probability.</div>' +
+      historyMarkup +
+      '<div class="footer">Scored ' + data.scoredGuessCount + ' candidate and probe words · runs locally</div>' +
       diagnosticText();
   }
 
