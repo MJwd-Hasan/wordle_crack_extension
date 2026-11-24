@@ -174,10 +174,11 @@
       return codes;
     });
 
+    const answerLimit = candidates.length <= 1800 ? candidates.length : MAX_ANSWER_GUESSES;
     const answerShortlist = candidates.map(word => ({
       word, rank: heuristic(word, stats, true)
     })).sort((a, b) => b.rank - a.rank || a.word.localeCompare(b.word))
-      .slice(0, Math.min(MAX_ANSWER_GUESSES, candidates.length));
+      .slice(0, answerLimit);
 
     const candidateSet = new Set(candidates);
     const probeShortlist = GUESSES.filter(word => !candidateSet.has(word))
@@ -222,10 +223,25 @@
       ["sassy", "class", "YYBGB"],
       ["eerie", "refer", "YGYBB"]
     ];
-    return tests.map(([guess, answer, expected]) => ({
-      guess, answer, expected, actual: getFeedback(guess, answer),
-      pass: getFeedback(guess, answer) === expected
-    }));
+    function decodePattern(code) {
+      let out = "";
+      for (let i = 0; i < 5; i++) {
+        const digit = code % 3;
+        out += digit === 2 ? "G" : digit === 1 ? "Y" : "B";
+        code = Math.floor(code / 3);
+      }
+      return out;
+    }
+    return tests.map(([guess, answer, expected]) => {
+      const guessChars = Uint8Array.from([...guess].map(ch => ch.charCodeAt(0) - 97));
+      const answerChars = Uint8Array.from([...answer].map(ch => ch.charCodeAt(0) - 97));
+      const fastFeedback = decodePattern(feedbackCode(guessChars, answerChars, new Int8Array(26)));
+      const actual = getFeedback(guess, answer);
+      return {
+        guess, answer, expected, actual, fastFeedback,
+        pass: actual === expected && fastFeedback === expected
+      };
+    });
   }
 
   window.WordleGuesserEngine = { analyze, getFeedback, filterWords, selfTest };
