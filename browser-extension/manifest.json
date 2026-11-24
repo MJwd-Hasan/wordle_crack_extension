@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "Wordle Guesser — Manual Player",
-  "version": "1.1.1",
-  "description": "Live Wordle suggestions powered by the manual_player algorithm.",
+  "version": "2.0.0",
+  "description": "Wordle helper with a larger dictionary and entropy-ranked suggestions.",
   "permissions": [],
   "host_permissions": [
     "https://wordlearchive.org/*",
