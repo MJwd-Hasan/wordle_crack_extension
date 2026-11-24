@@ -78,11 +78,16 @@
     const signature=JSON.stringify(history);
     if(signature===lastSignature)return;
     lastSignature=signature;
-    if(!history.length){if(panel?.isConnected)render([],null);return;}
+    if(!history.length){render([],null);return;}
     render(history,window.WordleGuesserEngine.analyze(history));
   }
   const observer=new MutationObserver(()=>update());
   observer.observe(document.documentElement,{subtree:true,childList:true,attributes:true,characterData:true,attributeFilter:["evaluation","data-state","data-status","letter"]});
+  // The game board is rendered inside nested Shadow DOM. A MutationObserver on
+  // documentElement cannot see mutations inside those shadow roots, so poll the
+  // visible board as well. This also catches late-loading game components.
+  ensurePanel();
+  render([],null);
   update();
-  setTimeout(update,700); setTimeout(update,1800);
+  setInterval(update,500);
 })();
