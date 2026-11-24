@@ -1,4 +1,4 @@
-# Wordle Guesser
+# Wordle Crack Extension
 
 A collection of Wordle-solving experiments, from a simple candidate-elimination script to a frequency-ranked manual assistant, an entropy-based Chrome/Edge browser extension, and a FLAN-T5-assisted guessing pipeline.
 
