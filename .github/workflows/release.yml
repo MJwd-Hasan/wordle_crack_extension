@@ -42,7 +42,7 @@ jobs:
             version="${tag#v}"
           fi
 
-          if [[ ! "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+          if [[ ! "$version" =~ ^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]]; then
             echo "Invalid version '$version'. Use MAJOR.MINOR.PATCH (for example, 2.0.1)." >&2
             exit 1
           fi
