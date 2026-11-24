@@ -1,13 +1,14 @@
 {
   "manifest_version": 3,
   "name": "Wordle Guesser — Manual Player",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "Live Wordle suggestions powered by the manual_player algorithm.",
   "permissions": [],
   "host_permissions": [
     "https://wordlearchive.org/*",
     "https://www.wordlearchive.org/*",
-    "https://*.nytimes.com/games/wordle/*"
+    "https://*.nytimes.com/games/wordle/*",
+    "https://lookleft.github.io/wordle-history/*"
   ],
   "action": {
     "default_popup": "popup.html",
@@ -18,7 +19,8 @@
       "matches": [
         "https://wordlearchive.org/*",
         "https://www.wordlearchive.org/*",
-        "https://*.nytimes.com/games/wordle/*"
+        "https://*.nytimes.com/games/wordle/*",
+        "https://lookleft.github.io/wordle-history/*"
       ],
       "js": [
         "words.js",
