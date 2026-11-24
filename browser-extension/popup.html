@@ -1,1 +1,34 @@
-<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="popup.css"><title>Wordle Guesser</title></head><body><main><h1>Wordle Guesser</h1><p>Manual Player algorithm, now in your browser.</p><ul><li>Detects completed GBY rows</li><li>Ranks candidate words with weighted probabilities</li><li>Shows letter probabilities and eliminated letters</li></ul><p class="note">Open Wordle Archive or NYT Wordle. The analysis panel appears on the game page after a guess is evaluated.</p><p class="small">No data is sent anywhere. Guesses are never submitted automatically.</p></main></body></html>
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <link rel="stylesheet" href="popup.css">
+  <title>Wordle Guesser</title>
+</head>
+<body>
+  <main>
+    <div class="brand">
+      <div class="logo">W</div>
+      <div><h1>Wordle Guesser</h1><p>Smart Solver · Version 2</p></div>
+    </div>
+    <div class="intro">A local Wordle assistant that learns from every colored row.</div>
+    <div class="metrics">
+      <div><b>10,798</b><span>answer candidates</span></div>
+      <div><b>11,730</b><span>valid guess words</span></div>
+    </div>
+    <section>
+      <h2>Smarter suggestions</h2>
+      <ul>
+        <li>Exact duplicate-letter feedback filtering.</li>
+        <li>Information-gain ranking across feedback patterns.</li>
+        <li>Expected remaining candidates and worst-case group size.</li>
+        <li>Letter frequencies and eliminated-letter tracking.</li>
+      </ul>
+    </section>
+    <div class="note">Open Wordle Archive or NYT Wordle. The analysis panel appears after a guess is evaluated. Suggestions are never entered automatically.</div>
+    <p class="privacy">Everything runs locally in your browser. No board data is sent anywhere.</p>
+    <p class="source">Dictionary includes a Google Ngrams frequency list (CC BY 3.0) and this repository's simulation vocabulary.</p>
+  </main>
+</body>
+</html>
