@@ -59,7 +59,7 @@ The browser extension is the recommended way to use this project during an actua
 2. Submit the guess in Wordle so the board reveals its green, yellow, and gray tiles.
 3. The extension reads the board feedback and updates its analysis panel.
 4. Review the remaining possible answers. Every displayed word is checked against all submitted green, yellow, and gray feedback.
-5. Choose a suggested word, enter it in Wordle, and submit it.
+5. Choose one of the remaining possible answers, enter it in Wordle, and submit it.
 6. Repeat the process after each row is evaluated. The possible-answer list updates as more feedback becomes available.
 
 ### What the extension shows
