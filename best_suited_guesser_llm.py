@@ -48,7 +48,7 @@ except ImportError:
     AutoTokenizer = AutoModelForSeq2SeqLM = None
 
 DEFAULT_CSV = "wordle_8000_simulations.csv"
-DEFAULT_MODEL_DIR = "wordle_flan_t5"
+DEFAULT_MODEL_DIR = "wordle_flat_t5"
 GREEN, YELLOW, GRAY = 2, 1, 0
 FEEDBACK_BASE = 3
 MAX_GUESSES = 6
@@ -189,8 +189,9 @@ def positional_rank(candidates: list[str], limit: int = 80) -> list[str]:
     return sorted(candidates, key=score, reverse=True)[:limit]
 
 
-def entropy(guess: str, candidates: list[str], fb_cache: dict[tuple[str, str], int]) -> float:
-    counts = Counter(fb_cache[(guess, target)] for target in candidates)
+def entropy(guess: str, candidates: list[str]) -> float:
+    """Calculate feedback entropy without requiring cached pairs or growing a huge cache."""
+    counts = Counter(feedback_code(guess, target) for target in candidates)
     n = len(candidates)
     return -sum((c/n) * math.log2(c/n) for c in counts.values() if c)
 
@@ -210,13 +211,10 @@ class Strategy:
         self.entropy_top = entropy_top
         self.llm_weight = llm_weight
         self.cache: dict[tuple[tuple[str, str], ...], str] = {}
-        self.feedback: dict[tuple[str, str], int] = {}
 
     def fb(self, g: str, t: str) -> int:
-        key = (g, t)
-        if key not in self.feedback:
-            self.feedback[key] = feedback_code(g, t)
-        return self.feedback[key]
+        # Feedback is cheap to calculate; avoid a global pair cache growing with simulations.
+        return feedback_code(g, t)
 
     def next_guess(self, history: list[tuple[str, str]], candidates: list[str], attempt: int) -> str:
         if attempt == 1:
@@ -238,7 +236,7 @@ class Strategy:
                     return word
             return self.words[0]
         pool = positional_rank(candidates, self.top_pool)
-        ent = [entropy(w, candidates, self.feedback) for w in pool]
+        ent = [entropy(w, candidates) for w in pool]
         top_idx = np.argsort(ent)[::-1][:self.entropy_top]
         top_words = [pool[i] for i in top_idx]
         top_ent = [ent[i] for i in top_idx]
