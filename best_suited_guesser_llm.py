@@ -15,6 +15,8 @@ from __future__ import annotations
 
 import argparse
 import csv
+import hashlib
+import random
 import json
 import math
 import os
@@ -349,8 +351,10 @@ def main():
         openings = vocab.copy()
     answers = sorted(set(answers) & set(vocab))
     openings = sorted(set(openings) & set(vocab))
-    if args.limit_targets:
-        answers = answers[:args.limit_targets]
+    # Randomly sample target words when a target limit is requested. The seed
+    # makes the sample reproducible and shared across all opening-word tests.
+    if args.limit_targets and args.limit_targets < len(answers):
+        answers = random.Random(args.seed).sample(answers, args.limit_targets)
     if args.limit_openings:
         openings = openings[:args.limit_openings]
     scorer = LLMScorer(args.model_dir, args.model_batch_size, args.device)
@@ -358,10 +362,24 @@ def main():
     out_dir = Path(args.output_dir)
     checkpoint = out_dir / "checkpoint.json"
     completed: dict[str, dict] = {}
+    checkpoint_meta = {
+        "seed": args.seed,
+        "targets_sha256": hashlib.sha256("\\n".join(answers).encode("utf-8")).hexdigest(),
+        "openings_sha256": hashlib.sha256("\\n".join(openings).encode("utf-8")).hexdigest(),
+        "max_guesses": args.max_guesses,
+        "top_pool": args.top_pool,
+        "entropy_top": args.entropy_top,
+        "llm_weight": args.llm_weight,
+        "model_dir": args.model_dir,
+    }
     if args.resume and checkpoint.exists():
         try:
-            completed = json.loads(checkpoint.read_text(encoding="utf-8"))
-            print(f"Resume: loaded {len(completed)} opening-word checkpoints.", flush=True)
+            saved = json.loads(checkpoint.read_text(encoding="utf-8"))
+            if saved.get("_meta") == checkpoint_meta:
+                completed = {k: v for k, v in saved.items() if k != "_meta"}
+                print(f"Resume: loaded {len(completed)} opening-word checkpoints (same target sample).", flush=True)
+            else:
+                print("Checkpoint settings/target sample differ; starting a fresh tournament.", file=sys.stderr)
         except Exception as e:
             print(f"Checkpoint could not be read ({e}); starting fresh.", file=sys.stderr)
     start = time.time()
@@ -391,11 +409,11 @@ def main():
                               "solve_rate": 1 - failures / len(answers), "guess_frequency": dict(freq)}
         if oi % max(1, args.checkpoint_every) == 0 or oi == total:
             out_dir.mkdir(parents=True, exist_ok=True)
-            checkpoint.write_text(json.dumps(completed, indent=2), encoding="utf-8")
+            checkpoint.write_text(json.dumps({"_meta": checkpoint_meta, **completed}, indent=2), encoding="utf-8")
         elapsed = time.time() - start
         print(f"[{oi}/{total}] opening={opening} mean={mean:.4f} solve={1-failures/len(answers):.2%} "
               f"elapsed={elapsed/60:.1f}m", flush=True)
-    results = list(completed.values())
+    results = [row for key, row in completed.items() if key != "_meta"]
     write_reports(out_dir, results, len(answers), len(openings))
     print(f"Total wall time: {(time.time()-start)/60:.2f} minutes", flush=True)
 
