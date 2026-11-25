@@ -50,7 +50,7 @@ except ImportError:
     AutoTokenizer = AutoModelForSeq2SeqLM = None
 
 DEFAULT_CSV = "wordle_8000_simulations.csv"
-DEFAULT_MODEL_DIR = "wordle_flat_t5"
+DEFAULT_MODEL_DIR = "wordle_flan_t5"
 GREEN, YELLOW, GRAY = 2, 1, 0
 FEEDBACK_BASE = 3
 MAX_GUESSES = 6
@@ -331,11 +331,18 @@ def main():
     parser.add_argument("--resume", action="store_true", help="Continue completed opening words from checkpoint JSON")
     parser.add_argument("--limit-targets", type=int, help="Smoke-test subset; not exhaustive")
     parser.add_argument("--limit-openings", type=int, help="Smoke-test subset; not exhaustive")
+    parser.add_argument("--top", type=int, default=20, help="Number of best opening results to print (default: 20)")
     parser.add_argument("--seed", type=int, default=2026)
     args = parser.parse_args()
 
     if args.max_guesses < 1:
         parser.error("--max-guesses must be positive")
+    if args.top < 1:
+        parser.error("--top must be positive")
+    if args.limit_targets is not None and args.limit_targets < 1:
+        parser.error("--limit-targets must be positive")
+    if args.limit_openings is not None and args.limit_openings < 1:
+        parser.error("--limit-openings must be positive")
     vocab = load_vocab(args.csv if Path(args.csv).exists() else None)
     if len(vocab) < 2:
         parser.error("Could not load word vocabulary. Install nltk and download its words corpus, or provide CSV.")
@@ -420,7 +427,7 @@ def main():
         print(f"[{oi}/{total}] opening={opening} mean={mean:.4f} solve={1-failures/len(answers):.2%} "
               f"elapsed={elapsed/60:.1f}m", flush=True)
     results = [row for key, row in completed.items() if key != "_meta"]
-    write_reports(out_dir, results, len(answers), len(openings), args.top)
+    write_reports(out_dir, results, len(answers), len(openings), display_top=args.top)
     print(f"Total wall time: {(time.time()-start)/60:.2f} minutes", flush=True)
 
 
