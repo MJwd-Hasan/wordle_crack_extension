@@ -355,8 +355,14 @@ def main():
     # makes the sample reproducible and shared across all opening-word tests.
     if args.limit_targets and args.limit_targets < len(answers):
         answers = random.Random(args.seed).sample(answers, args.limit_targets)
-    if args.limit_openings:
-        openings = openings[:args.limit_openings]
+    # Randomly sample opening words when limited, or shuffle the full opening
+    # list when no effective limit is applied. Use a separate RNG stream from
+    # target sampling so both samples remain independently reproducible.
+    opening_rng = random.Random(args.seed + 1)
+    if args.limit_openings and args.limit_openings < len(openings):
+        openings = opening_rng.sample(openings, args.limit_openings)
+    else:
+        opening_rng.shuffle(openings)
     scorer = LLMScorer(args.model_dir, args.model_batch_size, args.device)
     strategy = Strategy(vocab, scorer, args.top_pool, args.entropy_top, args.llm_weight)
     out_dir = Path(args.output_dir)
