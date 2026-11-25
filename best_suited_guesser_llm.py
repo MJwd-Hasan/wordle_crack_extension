@@ -265,7 +265,7 @@ def simulate_target(opening: str, target: str, vocab: list[str], strategy: Strat
     return max_guesses + 1  # not solved in allotted guesses
 
 
-def write_reports(output_dir: Path, results: list[dict], target_count: int, opening_count: int):
+def write_reports(output_dir: Path, results: list[dict], target_count: int, opening_count: int, display_top: int = 20):
     output_dir.mkdir(parents=True, exist_ok=True)
     sorted_results = sorted(results, key=lambda r: (r["mean_guesses"], r["failures"], r["opening_word"]))
     full_csv = output_dir / "best_guesser_all_openings.csv"
@@ -414,7 +414,7 @@ def main():
         print(f"[{oi}/{total}] opening={opening} mean={mean:.4f} solve={1-failures/len(answers):.2%} "
               f"elapsed={elapsed/60:.1f}m", flush=True)
     results = [row for key, row in completed.items() if key != "_meta"]
-    write_reports(out_dir, results, len(answers), len(openings))
+    write_reports(out_dir, results, len(answers), len(openings), args.top)
     print(f"Total wall time: {(time.time()-start)/60:.2f} minutes", flush=True)
 
 
