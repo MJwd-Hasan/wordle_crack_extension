@@ -304,8 +304,8 @@ def write_reports(output_dir: Path, results: list[dict], target_count: int, open
     with (output_dir / "best_guesser_summary.json").open("w", encoding="utf-8") as f:
         json.dump(summary, f, indent=2)
     print(f"Reports saved to: {output_dir.resolve()}", flush=True)
-    print("\nTOP 50 OPENING WORDS (mean guesses; ties broken by failures then alphabetically)")
-    for i, r in enumerate(top, 1):
+    print(f"\nTOP {display_top} OPENING WORDS (mean guesses; ties broken by failures then alphabetically)")
+    for i, r in enumerate(sorted_results[:display_top], 1):
         print(f"{i:2}. {r['opening_word']:5} mean={r['mean_guesses']:.4f} "
               f"median={r['median_guesses']:.1f} solve={r['solve_rate']:.2%} "
               f"freq={r['guess_frequency']}")
